@@ -1,0 +1,88 @@
+---
+title: "Week 3: ggplot and "
+description: "First impressions, and getting the workflow running."
+date: 2026-09-11
+---
+
+## What We Did
+
+<!-- CHANGE THIS: replace with your own notes -->
+
+Ansombe's Quartet -why we visualize data 
+
+Plot is a mapping from columns in your data to visual properties on your page ("Grammar of Graphics") or "gg" 
+
+* important to note, if not assigned to p (p <- ggplot), ggplot is made but not displayed 
+1. ggplot(data) creates a blank canvas, 
+2. aes(...) aka the aesthetic mappings not what you would think, this is not decorating! its. just. business.
+3. geom_*() = what shape or type of chart will be drawn 
+
+example: ggplot(tract_data) + 
+  aes(x = population, y = moe_pct) + 
+  geom_point() 
+  
+* where it gets tricky
+aes(color = "blue") will not get you the color blue!!! instead put it into the details of the point 
+instead: geom_point(color="blue") 
+
+
+How is a variable spread out? geom_histogram()
+How do 2 variables relate? geom_point()
+How do groups compare? geom_boxplot() or geom_col()
+How do things change overtime? geom_line() 
+How uncertain is a value? geom_errorbar()
+Also, facet_wrap(~reliability) for low med and high 
+
+cord_flip, flips the cordinates 
+slice_head, take the top number of objects 
+*using mutate with a column that alredy exists, rewrites that column ex: mutate(NAME)
+theme_minimal 
+
+
+--
+second half of class 
+coefficent of variation (cv), this is a relavant measure of sampling error 
+standard error: how many people you asked, how big the differnce between the answers 
+
+derived uncentainty, you have to account for the margin of error
+
+change over time 
+1. overlapping intervals, always compare non overlapping intervals 
+Questions?
+- build instead of environment? when to use what 
+
+Set up the portfolio workflow: made a repository from a template, cloned it with
+GitHub Desktop, edited files in RStudio, rendered with Quarto, and published to
+GitHub Pages.
+
+## Key Concepts
+
+Three places a file can live:
+
+1. **My computer** — where I edit
+2. **GitHub.com** — where it's stored
+3. **My live site** — what the world sees
+
+The loop: **Edit → Save → Render → Commit → Push → wait → refresh**
+
+## Proving R Works
+
+The chunk below runs when this page renders. If you can see a result underneath
+it on your published site, R and Quarto are talking to each other correctly.
+
+```{r}
+sessionInfo()$R.version$version.string
+```
+
+## Reflection
+
+<!-- CHANGE THIS: 3-4 sentences -->
+
+What I want out of this course:
+
+One thing I'm nervous about:
+
+## Questions I Still Have
+
+-
+-
