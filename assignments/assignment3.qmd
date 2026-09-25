@@ -1,0 +1,181 @@
+---
+title: "Verify the Claim: Philadelphia Poverty by Neighborhood"
+author: "Lay'la Harmon"
+date: 9/24/2026
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-summary: "Show code"
+    embed-resources: true
+execute:
+  freeze: false
+  warning: false
+  message: false
+---
+
+
+```{r}
+#| label: setup
+#| include: false
+library(tidyverse)
+library(tidycensus)
+```
+
+#Part1
+
+
+```{r}
+#| label: pull-2017
+pov_17 <- get_acs(
+  geography = "tract",
+  state = "PA",
+  county = "Philadelphia",
+  variables = c(poor = "B17001_002", total = "B17001_001"),
+  year = 2017,
+  survey = "acs5",
+  output = "wide",
+  geometry = FALSE
+)
+
+nrow(pov_17)
+```
+
+
+```{r}
+#| label: pull-2010
+pov_10 <- get_acs(
+  geography = "tract",
+  state = "PA",
+  county = "Philadelphia",
+  variables = c(poor = "B17001_002", total = "B17001_001"),
+  year = 2010,
+  survey = "acs5",
+  output = "wide",
+  geometry = FALSE
+) %>%
+  select(GEOID, poorE_10 = poorE, poorM_10 = poorM,
+         totalE_10 = totalE, totalM_10 = totalM)
+
+nrow(pov_10)
+```
+#The two periods do not overlap, there is a 2011 - 2012 gap. This does not allow for us to make a sound concklusion on causation 
+
+```{r}
+#| label: join-periods
+pov <- pov_17 %>%
+  left_join(pov_10, by = "GEOID")
+
+pov %>%
+  summarize(
+    n_tracts = n(),
+    no_2010_match = sum(is.na(totalE_10))
+  )
+```
+
+
+```{r}
+#| label: check-failures
+pov %>%
+  filter(is.na(totalE_10) | totalE == 0 | totalE_10 == 0) %>%
+  select(GEOID, NAME, totalE, totalE_10) %>%
+  head(10)
+```
+
+#Part2
+
+
+```{r}
+#| label: rates
+pov <- pov %>%
+  mutate(
+    rate_17     = poorE/totalE*100,
+    rate_17_moe = moe_prop(poorE, totalE, poorM, totalM),
+    rate_10     = poorE_10/totalE_10*100,
+    rate_10_moe = moe_prop(poorE_10, totalE_10, poorM_10, totalM_10)
+  )
+```
+
+
+```{r}
+#| label: reliability
+pov <- pov %>%
+  mutate(
+    rate_17_se = rate_17_moe / 1.645,
+    rate_17_cv = (rate_17_se / rate_17) * 100,
+    reliability = case_when(
+      rate_17_cv < 12  ~ "High",
+      rate_17_cv <= 40 ~ "Moderate",
+      TRUE             ~ "Low"
+    )
+  )
+```
+
+
+```{r}
+#| label: change
+pov <- pov %>%
+  mutate(
+    change     = rate_17 - rate_10,
+    change_moe = sqrt(rate_17_moe^2 + rate_10_moe^2),
+    detectable = abs(change) > change_moe
+  )
+
+pov %>%
+  count(detectable)
+```
+
+
+```{r}
+#| label: error-bar-plot
+#| fig-cap: "Change in tract poverty rate, 2006–10 to 2013–17, with 90% margins of error"
+ggplot(pov, aes(x = reorder(GEOID, change), y = change)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_pointrange(aes(ymin = change - change_moe, ymax = change + change_moe),
+                   size = 0.2) +
+  coord_flip() +
+  theme_minimal() +
+  theme(axis.text.y = element_blank()) +
+  labs(x = NULL, y = "Percentage point change in poverty rate")
+```
+
+```{r}
+#| label: reliability-table
+#| tbl-cap: "Tracts named in the article, with CV-based reliability"
+top_tracts <- bind_rows(
+  pov %>% slice_max(order_by = change, n = 5),
+  pov %>% slice_min(order_by = change, n = 5)
+)
+
+top_tracts %>%
+  select(GEOID, NAME, rate_17, rate_17_cv, reliability) %>%
+  gt() %>%
+  tab_source_note("Reliability thresholds: CV < 12% High, 12–40% Moderate, > 40% Low (Jurjevich et al. 2018)")
+
+library(gt)
+```
+
+```{r}
+#| label: extra-viz
+
+```
+
+#Part3
+
+Supported: 
+- The article claimed that Fairhill (North Philadelphia) reported a poverty rate around 61%.This is true, census tract 175 poverty rate was 59.56% in rate_2017. 
+
+Not Supported:
+- The article claims that Eastwick (Southwest Philadelphia, near the airport) had the biggest poverty-rate increase citywide, from about 12% (2006–10) to about 26% (2013–17) implying conditions worsened even after the recession ended.This is not completely true, Eastwick did experience the largest increase in poverty rate of all other census tracts, but the rate increase instead from 4.05% in 2010 with a margin of error of 0.01 to a poverty rate of 34.93% with a margin of error of 0.14 in 2017. It is important to also note that the margin of error change over time was .14 which is quite high. The article did not take margin of error properly into account making its claims wrong. 
+- Overall the article used strong implicit messaging that does not fully hold true 
+
+Cannot be determined: 
+- The article stated that Holmesburg (Northeast Philadelphia) white poverty specifically rose from about 2% to about 19%, cited as the leading example of a citywide rise in white poverty. This claim is about a racial subgroup's poverty rate, not overall tract poverty — my analysis  only has overall poverty (B17001_002/B17001_001) so this therefore cannot be determined. 
+
+#Part4
+
+Original: In grim and startling detail, a new five-year federal survey of poverty in Philadelphia shows a city still not recovered from the Great Recession — with white poverty exploding, inequality becoming the norm, and an out-of-the-way neighborhood experiencing some of the worst ravages of privation.
+
+Rewrite: New five year fed survey of poverty in Philly shows that poverty is increasing in most neighborhoods. Connected, inequality between racial groups in income divides continues.  
+
+
